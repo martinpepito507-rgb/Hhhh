@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TurriMazmorra</title>
+
+<style>
+body { margin:0; background:black; overflow:hidden; }
+canvas { display:block; margin:auto; background:#111; }
+
+button {
+ position:absolute;
+ width:60px;
+ height:60px;
+ font-size:20px;
+ opacity:0.7;
+}
+
+#up { left:80px; bottom:150px; }
+#down { left:80px; bottom:50px; }
+#left { left:10px; bottom:50px; }
+#right { left:150px; bottom:50px; }
+#attack { right:30px; bottom:80px; width:80px; height:80px; background:red; color:white; }
+</style>
+</head>
+
+<body>
+
+<canvas id="game" width="800" height="600"></canvas>
+
+<button id="up">↑</button>
+<button id="down">↓</button>
+<button id="left">←</button>
+<button id="right">→</button>
+<button id="attack">⚔</button>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// CONFIG
+const TILE = 50;
+
+// MAPA MAZMORRA
+const map = [
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+[1,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+[1,0,1,0,1,0,1,1,0,1,0,1,1,0,1],
+[1,0,1,0,0,0,0,1,0,0,0,0,1,0,1],
+[1,0,1,1,1,1,0,1,1,1,1,0,1,0,1],
+[1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+[1,1,1,1,0,1,1,1,1,0,1,1,1,1,1],
+[1,0,0,1,0,0,0,0,1,0,0,0,0,0,1],
+[1,0,0,1,1,1,1,0,1,1,1,1,1,0,1],
+[1,0,0,0,0,0,1,0,0,0,0,0,1,0,1],
+[1,1,1,1,1,0,1,1,1,1,1,0,1,1,1],
+[1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+[1,0,1,0,1,1,1,1,1,0,1,1,1,0,1],
+[1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+// PLAYER
+let player = {x:100,y:100,size:40,speed:3,hp:100,kills:0};
+
+// ENEMIGOS
+let enemies = [
+ {x:300,y:200,hp:10},
+ {x:500,y:300,hp:10},
+ {x:600,y:500,hp:10}
+];
+
+// JEFE
+let boss = {x:600,y:600,hp:40,active:false};
+
+// ATAQUE
+let attack = {x:0,y:0,w:50,h:50,active:false,cooldown:0};
+
+// INPUT
+let move={up:false,down:false,left:false,right:false};
+
+up.ontouchstart=()=>move.up=true;
+up.ontouchend=()=>move.up=false;
+down.ontouchstart=()=>move.down=true;
+down.ontouchend=()=>move.down=false;
+left.ontouchstart=()=>move.left=true;
+left.ontouchend=()=>move.left=false;
+right.ontouchstart=()=>move.right=true;
+right.ontouchend=()=>move.right=false;
+attackBtn=document.getElementById("attack");
+attackBtn.ontouchstart=attackFunc;
+
+// COLISION
+function isWall(x,y){
+ let gx=Math.floor(x/TILE);
+ let gy=Math.floor(y/TILE);
+ return map[gy][gx]===1;
+}
+
+// MATEMÁTICA
+function pregunta(){
+ let t=Math.floor(Math.random()*4);
+ if(t===0)return{p:"Derivá: 3x^2",r:"6x"};
+ if(t===1)return{p:"∫ 2x dx",r:"x^2 + C"};
+ if(t===2)return{p:"Resolver: 2x+6=0",r:"-3"};
+ if(t===3)return{p:"cos(0°)",r:"1"};
+}
+
+// UPDATE
+function update(){
+
+ let nx=player.x, ny=player.y;
+
+ if(move.up) ny-=player.speed;
+ if(move.down) ny+=player.speed;
+ if(move.left) nx-=player.speed;
+ if(move.right) nx+=player.speed;
+
+ if(!isWall(nx,player.y)) player.x=nx;
+ if(!isWall(player.x,ny)) player.y=ny;
+
+ enemies.forEach(e=>{
+  if(collide(player,e)) player.hp-=0.1;
+
+  if(attack.active && collide(attack,e)){
+   e.hp--;
+  }
+
+  if(e.hp<=0){
+   let q=pregunta();
+   let r=prompt(q.p);
+
+   if(r===q.r){
+    player.kills++;
+   } else {
+    player.hp-=20;
+   }
+   e.hp=10;
+  }
+ });
+
+ if(player.kills>=3) boss.active=true;
+
+ if(boss.active){
+  if(collide(player,boss)) player.hp-=0.2;
+
+  if(attack.active && collide(attack,boss)){
+   boss.hp--;
+  }
+ }
+
+ if(player.hp<=0){
+  alert("💀 GAME OVER");
+  location.reload();
+ }
+
+ if(attack.cooldown>0) attack.cooldown--;
+}
+
+// ATAQUE
+function attackFunc(){
+ if(attack.cooldown>0) return;
+
+ attack.cooldown=20;
+ attack.active=true;
+ attack.x=player.x;
+ attack.y=player.y;
+
+ setTimeout(()=>attack.active=false,200);
+}
+
+// COLISION
+function collide(a,b){
+ return a.x<b.x+40 && a.x+40>b.x && a.y<b.y+40 && a.y+40>b.y;
+}
+
+// DIBUJAR PERSONAJES
+function drawPlayer(p){
+ ctx.fillStyle="blue";
+ ctx.fillRect(p.x,p.y,40,40);
+
+ ctx.fillStyle="white";
+ ctx.fillRect(p.x+10,p.y+10,5,5);
+ ctx.fillRect(p.x+25,p.y+10,5,5);
+}
+
+function drawEnemy(e){
+ ctx.fillStyle="beige";
+ ctx.fillRect(e.x,e.y,40,40);
+
+ ctx.fillStyle="black";
+ ctx.fillRect(e.x+10,e.y+10,5,5);
+ ctx.fillRect(e.x+25,e.y+10,5,5);
+}
+
+function drawBoss(b){
+ ctx.fillStyle="purple";
+ ctx.fillRect(b.x,b.y,80,80);
+}
+
+// MAPA
+function drawMap(){
+ for(let y=0;y<map.length;y++){
+  for(let x=0;x<map[y].length;x++){
+   ctx.fillStyle=map[y][x]?"#333":"#1a1a1a";
+   ctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+  }
+ }
+}
+
+// DRAW
+function draw(){
+ drawMap();
+
+ drawPlayer(player);
+
+ enemies.forEach(drawEnemy);
+
+ if(boss.active) drawBoss(boss);
+
+ if(attack.active){
+  ctx.fillStyle="yellow";
+  ctx.fillRect(attack.x,attack.y,attack.w,attack.h);
+ }
+
+ ctx.fillStyle="green";
+ ctx.fillRect(20,20,player.hp*2,20);
+}
+
+// LOOP
+function loop(){
+ update();
+ draw();
+ requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
